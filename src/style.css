@@ -1,0 +1,304 @@
+/* --------------------------------------------------------------------------
+   Layers, back to front (z-index):
+     0  .site-header   lives UNDER the fabric, on the dark backdrop
+     3  #gl            the WebGL fabric (transparent where there's no cloth)
+     4  #content       page text, printed "on" the fabric. It (and #scroller
+                       inside it) are clipped from JS to where the front of
+                       the cloth is showing.
+   The custom properties marked "from JS" are set in main.js → applyLayout so
+   the HTML always lines up with the cloth.
+
+   Type, colours and photo layouts follow docs/DESIGN.md:
+   regular-weight headings, photo grids. Links are the text colour, underlined
+   (no accent colour). Stitching is one red thread (config.look.stitchColor).
+   -------------------------------------------------------------------------- */
+:root {
+  --seam-x: 18vw;           /* from JS: x of the seam, in px */
+  --content-left: 34vw;     /* from JS: where the page text starts */
+  --text-top: 20vh;         /* from JS: the straight line text scrolls out of view at */
+  --gutter: 24px;
+  --header-left: 9vw;       /* from JS: the header's scroll box spans the gap between the creases */
+  --header-width: 50vw;
+
+  /* Colours: all set from the theme in config.js (main.js → applyTheme). */
+  --backdrop: #f6f4ef;      /* what's under the fabric */
+  --header-ink: #202124;
+  --nav-ink: #ffffff;
+  --ink: #ece6da;
+  --muted: #b9b2a6;
+  --marker: #8d877d;        /* list bullets */
+  --stitch: #7f3327;        /* thread colour for the photo stitching */
+  --base-image: none;       /* tiled fabric scan under the fabric */
+  --base-size: auto;
+
+  /* Fonts: set from config.fonts (fonts.js → applyFonts). */
+  --font-heading: Arial, Helvetica, sans-serif;
+  --font-body: Arial, Helvetica, sans-serif;
+  --font-nav: Arial, Helvetica, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--backdrop) var(--base-image) repeat top left / var(--base-size);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* --- Header: under the fabric, scrolls sideways beneath its edge ------------ */
+.site-header {
+  position: fixed;
+  z-index: 0;
+  top: 0;
+  /* Spans the gap between the two creases; both edges are tucked under the
+     cloth, so scrolling slides the links out from underneath it. */
+  left: var(--header-left);
+  width: var(--header-width);
+  box-sizing: border-box;
+  display: flex;
+  padding: 12px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;     /* hidden: it's scrolled by trackpad / wheel */
+  white-space: nowrap;
+  color: var(--header-ink);
+  /* At rest both edges of this box are under the cloth. While the cloth is
+     being pulled off they're exposed, so fade them instead of a hard cut. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+          mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+  /* a soft dark halo keeps the header readable on the busy plaid */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 8px rgba(0, 0, 0, 0.35);
+}
+.site-header::-webkit-scrollbar { display: none; }
+
+/* One copy of name + nav. The trailing padding matches the gap, so the
+   copies repeat evenly and the loop has no visible seam. */
+.header-set {
+  --set-gap: clamp(24px, 3vw, 48px);
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: var(--set-gap);
+  padding-right: var(--set-gap);
+}
+
+.brand {
+  flex: 0 0 auto;
+  display: block;
+  width: 92px;
+  height: 92px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55)); /* same halo as the header text */
+}
+/* The hand-written name is used as a MASK: the drawing's shape is cut out of
+   a block of colour, so it can be any colour (--header-ink). */
+.brand-ink {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--header-ink);
+  -webkit-mask: url(/graphics/name_written.svg) left top / contain no-repeat;
+          mask: url(/graphics/name_written.svg) left top / contain no-repeat;
+}
+
+.site-header nav {
+  display: flex;
+  flex: 0 0 auto;
+  gap: clamp(20px, 2vw, 30px);
+  padding-top: 22px; /* nav text top = 12 + 22 = 34px: NAV_TOP in main.js */
+}
+
+.site-header nav a {
+  font-family: var(--font-nav);
+  color: var(--nav-ink);
+  text-decoration: none;
+  text-transform: uppercase;
+  font-size: clamp(18px, 1.45vw, 24px);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.site-header nav a:hover,
+.site-header nav a:focus-visible,
+.site-header nav a[aria-current] {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+/* --- Canvas ------------------------------------------------------------------- */
+#gl {
+  position: fixed;
+  z-index: 3;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* let clicks and scrolling pass through to the header underneath */
+  pointer-events: none;
+}
+body.orbiting #gl { pointer-events: auto; }
+
+/* --- Page content on the main panel ------------------------------------------ */
+#content {
+  position: fixed;
+  z-index: 4;
+  inset: 0; /* covers the whole window so its clip path can use window coordinates */
+  color: var(--ink);
+}
+/* Text starts at --text-top. JS clips the scroll box along a straight
+   horizontal line just under the flap, so text slides out of view there
+   instead of along the flap's diagonal edge. The line rises as scrolling
+   pushes the flap up. */
+#scroller {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: var(--text-top) clamp(24px, 4vw, 68px) 0 var(--content-left);
+}
+body.orbiting #content { pointer-events: none; }
+
+/* --- Page typography (DESIGN.md) ---------------------------------------------- */
+.page {
+  font-family: var(--font-body);
+  max-width: 1020px;
+  font-size: clamp(16px, 1.05vw, 21px);
+  line-height: 1.48;
+}
+.page * { box-sizing: border-box; }
+.page h1, .page h2, .page h3, .page p, .page figure { margin-top: 0; }
+.page h1, .page h2, .page h3 { font-family: var(--font-heading); }
+.page h1 { font-size: clamp(31px, 2.05vw, 41px); line-height: 1.22; font-weight: 400; margin-bottom: 42px; }
+.page h2 { font-size: clamp(28px, 1.7vw, 34px); font-weight: 400; line-height: 1.25; margin-bottom: 22px; }
+.page h3 { font-size: clamp(21px, 1.35vw, 26px); line-height: 1.3; font-weight: 400; margin-bottom: 10px; }
+.page p { max-width: 42em; margin-bottom: 17px; }
+.page a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+.page figure { margin: 0; position: relative; }
+
+/* Sewn-on photos (photoStitches.js): an SVG just around each photo with a
+   squiggly edge thread and stitches out onto the cloth. */
+.photo-stitches {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  width: calc(100% + 28px);
+  height: calc(100% + 28px);
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--stitch);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.page img { display: block; width: 100%; object-fit: cover; }
+.empty-note { color: var(--muted); }
+
+/* --- Photo layouts (from the old static site) --------------------------------- */
+.home-gallery {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: clamp(36px, 4.2vw, 62px);
+  gap: 14px;
+}
+.home-gallery figure { min-width: 0; min-height: 0; }
+.home-gallery img { height: 100%; }
+.home-gallery figure:nth-child(1) { grid-column: 1 / 8; grid-row: 1 / 7; }
+.home-gallery figure:nth-child(2) { grid-column: 8 / 13; grid-row: 1 / 5; }
+.home-gallery figure:nth-child(3) { grid-column: 8 / 13; grid-row: 5 / 9; }
+.home-gallery figure:nth-child(4) { grid-column: 1 / 5; grid-row: 7 / 12; }
+.home-gallery figure:nth-child(5) { grid-column: 5 / 9; grid-row: 7 / 12; }
+.home-gallery figure:nth-child(6) { grid-column: 9 / 13; grid-row: 9 / 12; }
+.home-gallery figure:nth-child(7) { grid-column: 1 / 7; grid-row: 12 / 17; }
+.home-gallery figure:nth-child(8) { grid-column: 7 / 13; grid-row: 12 / 17; }
+
+.project-list, .photo-list { list-style: disc; padding-left: 26px; margin: 23px 0 0; }
+.project-list > li { padding-left: 3px; margin-bottom: 34px; }
+.project-list > li::marker, .photo-list > li::marker { color: var(--marker); }
+.project-list .photo-list { list-style-type: circle; }
+.feature-photo { max-width: 680px; margin: 17px 0 0; }
+.feature-photo img { max-height: 500px; object-position: center 40%; }
+
+.photo-list { display: grid; gap: 19px; margin-top: 18px; }
+.photo-list img { height: clamp(170px, 19vw, 275px); }
+.ensemble-photos { grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: clamp(26px, 3.5vw, 50px); gap: 13px; }
+.ensemble-photos li { min-width: 0; min-height: 0; }
+.ensemble-photos li:nth-child(1) { grid-column: 1 / 8; grid-row: 1 / 8; }
+.ensemble-photos li:nth-child(2) { grid-column: 8 / 13; grid-row: 1 / 6; }
+.ensemble-photos li:nth-child(3) { grid-column: 8 / 13; grid-row: 6 / 11; }
+.ensemble-photos li:nth-child(4) { grid-column: 1 / 8; grid-row: 8 / 13; }
+.ensemble-photos figure, .ensemble-photos img { height: 100%; }
+.two-up { grid-template-columns: 1.25fr .82fr; align-items: start; gap: 18px; }
+.two-up li:nth-child(2) { margin-top: 54px; }
+.two-up img { height: clamp(230px, 30vw, 430px); }
+.two-up li:nth-child(2) img { height: clamp(185px, 24vw, 340px); }
+.modern-photos { grid-template-columns: 1.1fr .8fr; align-items: start; gap: 18px; }
+.modern-photos li:nth-child(2), .modern-photos li:nth-child(4) { margin-top: 52px; }
+.modern-photos li:nth-child(3) { margin-top: -32px; }
+.modern-photos img { height: clamp(250px, 31vw, 440px); }
+.modern-photos li:nth-child(2) img, .modern-photos li:nth-child(3) img { height: clamp(190px, 25vw, 360px); }
+.mend-photos { grid-template-columns: .85fr 1.3fr .9fr; align-items: start; gap: 18px; }
+.mend-photos li:nth-child(2) { margin-top: 55px; }
+.mend-photos li:nth-child(3) { margin-top: 105px; }
+.mend-photos img { height: clamp(175px, 21vw, 300px); }
+.mend-photos li:nth-child(2) img { height: clamp(220px, 27vw, 380px); }
+
+.getting-dressed { margin-top: 65px; }
+.getting-dressed h2 { margin-bottom: 18px; }
+.dress-scroll {
+  display: flex;
+  width: 100%;
+  height: clamp(280px, 36vw, 500px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  gap: 18px;
+  padding: 14px;            /* room for the stitches, which the scroll box would clip */
+  scroll-padding-inline: 14px;
+  scrollbar-color: #aeb6b8 transparent;
+  scrollbar-width: thin;
+}
+.dress-scroll figure { height: 100%; flex: 0 0 auto; scroll-snap-align: start; }
+.dress-scroll figure:nth-child(1) { width: 25%; }
+.dress-scroll figure:nth-child(2) { width: 37%; }
+.dress-scroll figure:nth-child(3) { width: 29%; }
+.dress-scroll figure:nth-child(4) { width: 24%; }
+.dress-scroll figure:nth-child(5) { width: 34%; }
+.dress-scroll figure:nth-child(6) { width: 27%; }
+.dress-scroll img { height: 100%; }
+
+.page-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 72px 0 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.page-footer a { text-decoration: none; }
+.page-footer a:hover { text-decoration: underline; }
+
+/* --- Font specimens (/fonts) --------------------------------------------------- */
+.font-sample { padding: 28px 0; border-top: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); }
+.font-sample h2 { font-family: inherit; margin-bottom: 10px; }
+.font-sample .font-name { font-family: Arial, sans-serif; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.font-sample .font-name span { text-transform: none; letter-spacing: 0; }
+.font-nav-sample { text-transform: uppercase; letter-spacing: .045em; font-size: 14px; font-weight: 600; }
+.font-buttons { font-family: Arial, sans-serif; font-size: 13px; color: var(--muted); }
+.font-buttons button {
+  font: inherit; color: var(--ink); background: transparent; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--ink) 40%, transparent); border-radius: 999px;
+  padding: 3px 10px; margin-left: 4px;
+}
+.font-buttons button:hover { border-color: var(--ink); }
+
+/* --- Narrow screens -------------------------------------------------------------- */
+@media (max-width: 650px) {
+  .brand { width: 64px; height: 64px; }
+  .site-header nav a { font-size: 15px; }
+  .page h1 { font-size: clamp(26px, 7vw, 34px); margin-bottom: 27px; }
+  .two-up, .modern-photos, .mend-photos { grid-template-columns: 1fr; }
+  .two-up li, .modern-photos li, .mend-photos li { margin-top: 0 !important; }
+}

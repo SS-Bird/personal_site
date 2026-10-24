@@ -1,35 +1,34 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#fdfdfc" />
-  <meta name="description" content="Sophie Bird's sewing archive: historical clothing, modern pieces, and mending." />
-  <title>Sophie Bird — Sewing</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <header class="site-header"><div class="header-inner">
-    <a class="brand" href="index.html" aria-label="Sophie Bird home"><img src="assets/graphics/name_written.svg" alt="Sophie Bird" /></a>
-    <nav class="navigation" aria-label="Main navigation">
-      <a href="index.html" aria-current="page">Home</a><a href="1780s-ensemble.html">1780s Ensemble</a><a href="larp.html">Larp!</a><a href="historical.html">Other Historical Pieces</a><a href="modern.html">Modern Pieces</a><a href="mending.html">Mending</a>
-    </nav>
-  </div></header>
-  <main class="page-frame"><div class="page-scroll">
-    <section class="archive-section" id="home">
-      <h1>I am Sophie. Sometimes I sew things. Often historical things. <a href="1780s-ensemble.html">Check it out!</a></h1>
-      <div class="home-gallery" aria-label="A selection of Sophie’s sewing projects">
-        <figure><img src="assets/sewing_photos/IMG_0411.JPG" alt="Sophie wearing a green stays and grey skirt in a historic kitchen" /></figure>
-        <figure><img src="assets/sewing_photos/IMG_0083.JPG" alt="A red historical bodice seen from behind" /></figure>
-        <figure><img src="assets/sewing_photos/IMG_0202.JPG" alt="A long blue skirt worn in the snow" /></figure>
-        <figure><img src="assets/sewing_photos/IMG_0362.JPG" alt="A colourful handmade top" /></figure>
-        <figure><img src="assets/sewing_photos/IMG_0293.JPG" alt="A printed pocket worn over a grey skirt" /></figure>
-        <figure><img src="assets/sewing_photos/IMG_0405.JPG" alt="A gathered linen historical shirt" /></figure>
-        <figure><img src="assets/sewing_photos/IMG_0346.JPG" alt="A handmade sleeveless top" /></figure>
-        <figure><img src="assets/sewing_photos/IMG_0112.JPG" alt="Close-up of historical stays and hand stitching" /></figure>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sophie Bird's sewing archive: historical clothing, modern pieces, and mending." />
+    <title>Sophie Bird — Sewing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  </head>
+  <body>
+    <!-- Order here doesn't matter for stacking; z-index in style.css does. -->
+    <!-- The header lives UNDER the fabric and scrolls sideways beneath its edge.
+         main.js copies .header-set a few times so the scrolling loops. -->
+    <header class="site-header">
+      <div class="header-set">
+      <a class="brand" href="/" data-link aria-label="Sophie Bird home"><span class="brand-ink"></span></a>
+      <nav aria-label="Main navigation">
+        <a href="/" data-link>Home</a>
+        <a href="/1780s-ensemble" data-link>1780s Ensemble</a>
+        <a href="/larp" data-link>Larp!</a>
+        <a href="/historical" data-link>Other Historical Pieces</a>
+        <a href="/modern" data-link>Modern Pieces</a>
+        <a href="/mending" data-link>Mending</a>
+      </nav>
       </div>
-    </section>
-  </div></main>
-  <footer class="site-footer"><span>Sophie Bird</span><a href="mailto:sophiebird825@gmail.com">sophiebird825@gmail.com</a></footer>
-</body>
+    </header>
+
+    <canvas id="gl"></canvas>
+    <main id="content"><div id="scroller"></div></main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
