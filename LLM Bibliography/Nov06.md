@@ -141,3 +141,8 @@ A record of the AI-assisted conversation that added the Sewing patches, the Proj
 > update hte LLM bibliography, commit and push
 
 **Response:** added this entry, widened the dates and the before/after summary to cover 6–9 November, then committed everything and pushed to `origin/main`.
+
+### 14 (9 November)
+> I just added a bit of text, but that has to be pushed
+
+**Response:** committed and pushed the new writing: an AI Note on the landing page, the shirt paragraphs moved into the Other Historical intro, and a new line on the Assisi Wedding dress. The text was left as written.

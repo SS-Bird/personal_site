@@ -1,17 +1,16 @@
 <!-- slot: intro -->
 
 # Other Historical Pieces
+This was the first thing I ever sewed 100% by hand. As in, with no machine stitching. It was created following Bernadette Banners guide, as she was my introduction to historical sewing. It remains a wonderful piece, althought I would encourage anyone with larger shoulders to consider a larger arms eye than Banner advises. 
+
+To this day, I have never added gotten around to adding the buttonholes.
 
 <!-- slot: shirt -->
-<!-- Followed by two photos of the shirt. -->
+<!-- Followed by one large photo of the shirt. --> 
 
 ### 18th century men’s shirt
 
 My entirely hand stitched 18th century men’s shirt. This is one of my absolute favorite creations. The classic piece is appropriate to decades (if not centuries) of history on top of being wearable day to day (if you can manage the sleeves).
-
-This was the first thing I ever sewed 100% by hand. As in, with no machine stitching. It was created following Bernadette Banners guide, as she was my introduction to historical sewing. It remains a wonderful piece, althought I would encourage anyone with larger shoulders to consider a larger arms eye than Banner advises. 
-
-To this day, I have never added gotten around to adding the buttonholes.
 
 <!-- slot: skirt -->
 <!-- Followed by two photos of the skirt. -->

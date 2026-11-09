@@ -16,3 +16,6 @@ I'm super into sewing, especially historical sewing, which brought me into the w
 
 ## Contact
 You can contact me at bird@uni.minerva.edu
+
+## AI Note
+This site was mostly vibecoded, but all text is written by myself and it's design was closely directed. 
