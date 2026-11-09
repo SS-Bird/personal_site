@@ -8,10 +8,11 @@ import { config } from './config.js';
 import { createFabric } from './fabric.js';
 import { createTransitions } from './transition.js';
 import { createRouter } from './router.js';
-import { pages } from './pages.js';
+import { pages, sewingPatches } from './pages.js';
 import { clipByLine, intersectConvex, area } from './polygons.js';
 import { FONTS, applyFonts } from './fonts.js';
-import { stitchPhotos } from './photoStitches.js';
+import { stitch } from './photoStitches.js';
+import { renderPatches } from './patches.js';
 import './style.css';
 
 // Debug overlays can be switched on from the URL, e.g. ?debug=wireframe,grid
@@ -25,6 +26,8 @@ const els = {
   scroller: document.querySelector('#scroller'),
   header: document.querySelector('.site-header'),
   navLinks: document.querySelectorAll('.site-header nav a[data-link]'),
+  patches: document.querySelector('#patches'),
+  patchList: document.querySelector('#patches .patch-list'),
 };
 
 // --- Renderer ----------------------------------------------------------------
@@ -84,20 +87,22 @@ function toPath(poly) {
   return 'M' + poly.map((p) => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L') + ' Z';
 }
 
-// The lowest point (CSS px) any flap reaches over the text column, for a
-// given fold state, plus a little breathing room. 0 if no flap is there.
-function flapBottomOverText(state) {
-  const leftPx = config.layout.contentLeft * window.innerWidth;
+// The lowest point (CSS px) any flap reaches between minX and maxX (CSS px),
+// for a given fold state, plus a little breathing room. 0 if no flap is there.
+function flapBottom(state, minX, maxX = Infinity) {
   const { flaps } = fabric.folds(fabric.measure(viewWidth(), VIEW_HEIGHT, state));
   let bottom = 0;
   for (const flap of Object.values(flaps)) {
     if (flap.length < 3) continue;
-    // only the part of the flap that's over the text column (x ≥ leftPx)
-    const overText = clipByLine(flap.map(toScreen), { x: leftPx, y: 0 }, { x: 1, y: 0 }, 1);
-    for (const p of overText) bottom = Math.max(bottom, p.y + 16);
+    // keep only the part of the flap with minX ≤ x ≤ maxX
+    let part = clipByLine(flap.map(toScreen), { x: minX, y: 0 }, { x: 1, y: 0 }, 1);
+    if (maxX < Infinity) part = clipByLine(part, { x: maxX, y: 0 }, { x: -1, y: 0 }, 1);
+    for (const p of part) bottom = Math.max(bottom, p.y + 16);
   }
   return Math.round(bottom);
 }
+// ...over the text column.
+const flapBottomOverText = (state) => flapBottom(state, config.layout.contentLeft * window.innerWidth);
 
 // The header's scroll box spans the gap between the two creases (at rest),
 // measured at the height of the nav text. Its edges sit just under the
@@ -138,6 +143,8 @@ function applyLayout(m) {
   root.setProperty('--text-top', `${top}px`);
   root.setProperty('--header-left', `${edges.left}px`);
   root.setProperty('--header-width', `${Math.max(0, edges.right - edges.left)}px`);
+  // Patches start just below the strip's resting flap.
+  root.setProperty('--patches-top', `${Math.max(flapBottom(restState, 0, seamPx) + 12, 0.18 * window.innerHeight)}px`);
   // By default the name starts halfway between the screen edge and the seam.
   setHeaderHome(Math.max(0, seamPx / 2 - edges.left));
 
@@ -150,7 +157,7 @@ function applyLayout(m) {
   // evenodd. Nested clips multiply, so both holes stay holes.
   // (clip-path also stops clicks in the hidden parts, so the header
   // underneath stays clickable.)
-  const { flatMain, flaps } = fabric.folds(m);
+  const { flatMain, flatStrip, flaps } = fabric.folds(m);
   const flat = flatMain.map(toScreen);
   const cover = (flap) => (flap.length >= 3 ? intersectConvex(flap.map(toScreen), flat) : []);
   const mainCover = cover(flaps.main);
@@ -167,6 +174,16 @@ function applyLayout(m) {
   const below = [{ x: 0, y: textLine }, { x: W, y: textLine }, { x: W, y: H }, { x: 0, y: H }];
   const stripHole = area(stripCover) > 1 ? intersectConvex(stripCover, below) : [];
   els.scroller.style.clipPath = `path(evenodd, "${toPath(below)} ${area(stripHole) > 1 ? toPath(stripHole) : ''}")`;
+
+  // The patches: same idea on the left strip. Visible where the strip's
+  // front shows (its flat part), minus its own flap lying on top. While the
+  // strip is tugged off, its flat part shrinks to nothing, so the patches
+  // vanish under the cloth just like the page text.
+  const stripFlat = flatStrip.map(toScreen);
+  const stripFlap = flaps.strip.length >= 3 ? intersectConvex(flaps.strip.map(toScreen), stripFlat) : [];
+  els.patches.style.clipPath = area(stripFlat) > 1
+    ? `path(evenodd, "${toPath(stripFlat)} ${area(stripFlap) > 1 ? toPath(stripFlap) : ''}")`
+    : 'inset(100%)';
 }
 
 // One function to call after ANY change: config → uniforms, HTML, one frame.
@@ -216,6 +233,8 @@ applyTheme();
 // Whenever you scroll more than one copy's width away from the middle copy,
 // we jump back by exactly one copy. The copies are identical, so the jump
 // is invisible and the row seems endless.
+// (Each copy is at least as wide as the header box, see .header-set in
+// style.css, so 5 is always enough to scroll a full copy either way.)
 const COPIES = 5;
 const firstSet = els.header.querySelector('.header-set');
 for (let i = 1; i < COPIES; i++) {
@@ -304,14 +323,39 @@ window.addEventListener('resize', onResize);
 onResize();
 
 // --- Pages & navigation --------------------------------------------------------------
-const transitions = createTransitions({ config, els, update, setFabric, onShow: () => stitchPhotos(els.scroller) });
+// After a page's HTML goes in (while the screen is empty, mid-transition):
+// lay out the patches for it, then sew on its photos and patches.
+function showPatchesAndStitch(page, forcePatches = false) {
+  // Looping clips play by themselves, unless the visitor asked for reduced
+  // motion: then they stay still (on their poster) with play controls.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    els.scroller.querySelectorAll('video[autoplay]').forEach((v) => {
+      v.autoplay = false;
+      v.pause();
+      v.controls = true;
+    });
+  }
+  renderPatches(els.patchList, page, sewingPatches, config, forcePatches);
+  stitch([...els.scroller.querySelectorAll('.page figure'), ...els.patchList.querySelectorAll('.patch')]);
+}
+const transitions = createTransitions({ config, els, update, setFabric, onShow: showPatchesAndStitch });
 const currentPage = () => pages[window.location.pathname] ?? pages['/'];
 
+// Which header link a path belongs to: its first part (/sewing/larp → /sewing).
+// The landing page ('/') belongs to none of them.
+const sectionOf = (path) => `/${path.split('/')[1]}`;
+
+let shownPage = null;
 createRouter((path) => {
   els.navLinks.forEach((a) => {
-    a.toggleAttribute('aria-current', new URL(a.href).pathname === path);
+    a.toggleAttribute('aria-current', new URL(a.href).pathname === sectionOf(path));
   });
-  transitions.go(pages[path] ?? pages['/']);
+  const page = pages[path] ?? pages['/'];
+  // Already showing it (e.g. an unknown address that fell back to the
+  // landing page): don't pull the cloth off for nothing.
+  if (page === shownPage) return;
+  shownPage = page;
+  transitions.go(page);
 });
 
 // --- Debug GUI (closed by default; click its title to open) -------------------------
@@ -330,7 +374,8 @@ gui.add(actions, 'replayChange').name('▶ page-change animation');
 const scrub = gui.addFolder('Scrub');
 scrub.add(config.unfold, 'progress', 0, 1, 0.001).name('unfold');
 scrub.add(config.fold, 'cornerDrop', 0, 1.2, 0.001).name('corner drop (1 = rest)');
-scrub.add(config.tug, 'progress', 0, 1, 0.001).name('tug off (page change)');
+scrub.add(config.tug, 'progress', 0, 1, 0.001).name('tug off: main');
+scrub.add(config.tug, 'stripProgress', 0, 1, 0.001).name('tug off: strip');
 scrub.add(config.seam, 'opacity', 0, 1, 0.01).name('seam opacity');
 
 const shape = gui.addFolder('Fold shape').close();
@@ -387,7 +432,7 @@ function buildColoursMenu() {
   for (const page of Object.values(pages)) {
     if (page.fontSpecimen) continue;
     const fab = t.fabrics[page.fabric];
-    const label = page.title.split(' — ')[0].replace('Sophie Bird', 'Home');
+    const label = page.title.split(' — ')[0].replace('Sophie Bird', 'Landing');
     const folder = fabricsFolder.addFolder(`${label} (${page.fabric})`).close();
     const preview = () => setFabric(page.fabric);
     folder.addColor(fab, 'color').name('warp threads').onChange(preview);
@@ -422,6 +467,15 @@ look.add(config.look, 'patternContrast', 0, 1.5, 0.01).name('texture strength');
 look.add(config.look, 'shadowStrength', 0, 1, 0.01).name('shadow');
 look.add(config.look.lightDir, '0', -1, 1, 0.01).name('light x');
 look.add(config.look.lightDir, '1', -1, 1, 0.01).name('light y');
+
+const patchFolder = gui.addFolder('Patches').close();
+const redrawPatches = () => showPatchesAndStitch(currentPage(), true);
+patchFolder.add(config.patches, 'tilt', 0, 15, 0.5).name('max tilt (°)').onChange(redrawPatches);
+patchFolder.add(config.patches, 'nudge', 0, 40, 1).name('max nudge (px)').onChange(redrawPatches);
+patchFolder.add(config.patches, 'overhang', 0, 20, 0.5).name('raw edge (px)').onChange(redrawPatches);
+patchFolder.add(config.patches, 'fray', 0, 12, 0.5).name('fray (px)').onChange(redrawPatches);
+patchFolder.add(config.patches, 'gap', 0, 120, 1).name('gap (px)').onChange(redrawPatches);
+patchFolder.add(config.patches, 'saturation', 0, 1, 0.01).name('colour (0 = grey)').onChange(redrawPatches);
 
 const fontsFolder = gui.addFolder('Fonts').close();
 const fontNames = FONTS.map((f) => f.name);

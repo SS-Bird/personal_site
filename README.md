@@ -20,7 +20,8 @@ Light mode is the default. The debug panel (lil-gui) can switch theme, palette, 
 
 | Path | Contents |
 |---|---|
-| `index.html`, `src/` | the site: shaders, fold geometry, animations, pages |
+| `index.html`, `src/` | the site: shaders, fold geometry, animations, page layouts |
+| `script/` | the writing for each page, in Markdown (see `script/README.md`) |
 | `public/` | resized photos, plaid textures, name graphic |
 | `docs/` | content and design briefs, layout sketch, old-site screenshot |
 | `originals/` | full-size source photos |

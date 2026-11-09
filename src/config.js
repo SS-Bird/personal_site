@@ -56,13 +56,16 @@ export const config = {
     waveAmp: 0.022,     // how far the crease wanders off a straight line (unevenness)
     waveFreq: 3.0,      // how many "bumps" of unevenness along the bar
     seed: 0,            // changes the noise pattern; re-randomized for every new sheet
+    stripSeed: null,    // the strip's own pattern while it stays put (null = follow seed)
   },
 
   // Page change: the inner corners are tugged down and outward until both
   // pieces have peeled off the screen: the right piece down and right, the
   // left strip down and left.
   tug: {
-    progress: 0,        // 0 = resting, 1 = both pieces pulled completely off
+    progress: 0,        // 0 = resting, 1 = the main piece pulled completely off
+    stripProgress: 0,   // the same for the left strip. Between Sewing pages it
+                        // stays at 0, so the strip (and its patches) stay put.
     direction: {        // which way each corner is dragged (x, y)
       strip: [-1, -0.8],
       main: [1, -0.8],
@@ -213,6 +216,28 @@ export const config = {
     patternContrast: 0.93, // 0 = flat colour, 1 = full weave texture
     lightDir: [-0.35, 0.5, 1.0], // light comes from the top-left, in front of the page
     shadowStrength: 0.36, // how dark the shadow under a flap is
+  },
+
+  // The Sewing subpage links: scraps of tartan stitched onto the left strip
+  // (patches.js). Which page gets which scrap is set in pages.js → sewingPatches.
+  patches: {
+    // Scans in public/textures. `size` = how wide the scan is drawn, in px:
+    // bigger = coarser threads. Each patch shows a random part of its scan,
+    // away from the scan's edges (tartan_1 has a stock watermark on its left edge).
+    fabrics: {
+      fenwick:    { src: '/textures/Fenwick_Olive_Flat.jpg', size: 560 },
+      barraglom:  { src: '/textures/Barraglom_Plaid_Red_Flat.jpg', size: 440 },
+      ballantrae: { src: '/textures/Ballantrae_Orange_Flat.jpg', size: 560 },
+      navy:       { src: '/textures/tartan_1.jpg', size: 620 },
+      cockburn:   { src: '/textures/CockburnMuted_863_1173_A01_FLAT-Neal-Byrne-Photography.jpg', size: 1100 },
+      knot:       { src: '/textures/firefly-grey-plaid.png', size: 300 }, // spare: not used yet
+    },
+    tilt: 3,         // max rotation either way, in degrees (each patch gets its own)
+    nudge: 10,       // max sideways offset from the strip's centre, in px
+    overhang: 7,     // raw edge: how far the cloth sticks out past the stitch line, px
+    fray: 4,         // how ragged that raw edge is, px
+    gap: 56,         // vertical space between patches, px
+    saturation: 0,   // 0 = greyscale scraps, 1 = the scans' full colour
   },
 
   animation: {

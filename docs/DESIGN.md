@@ -14,6 +14,14 @@ A quiet, text-first archive printed on cloth. The fabric does the decorating: ke
 - Uppercase, medium weight, generous letter spacing, large and white so they stand out on the plaid.
 - No buttons, pills or accent colours. The row scrolls sideways in a loop beneath the fabric edge.
 
+### Patches (section subpages)
+
+- A section's subpages (for now only Sewing has them) are patches stitched onto the left strip, below its fold, in the order given in `CONTENT.md`.
+- Each patch is a scrap of one of the tartan scans in `public/textures`, shown in greyscale, with a slightly frayed raw edge, a small random tilt, and the same red whip-stitching as the photos. Leave clear space between patches.
+- Labels use the nav's type (uppercase Karla, white with a soft dark halo). The current page's label is underlined, like the nav.
+- On narrow screens the labels run vertically up the patch.
+- Pages outside a section with subpages leave the strip bare.
+
 ## Typography
 
 - Headings and nav: Karla. Body: Crimson Pro.
@@ -24,7 +32,7 @@ A quiet, text-first archive printed on cloth. The fabric does the decorating: ke
 ## Colour
 
 - Two themes. **Light (default):** Lamont "white guard" linens over the grey plaid. **Dark:** "dirty jewel" linens over the ochre plaid.
-- Each page has its own linen colour; text colours come from the theme's palette (`src/config.js`).
+- All Sewing pages share one linen (the Larp one, `sage`); the landing, Projects and Resume pages each have their own. Text colours come from the theme's palette (`src/config.js`).
 - Links use the text colour, underlined. There is no separate link or accent colour.
 - All stitching is one red thread: `#98200b`.
 

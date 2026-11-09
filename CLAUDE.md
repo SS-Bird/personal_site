@@ -39,10 +39,11 @@ After each step, tell me what to look at and what concept I just learned (e.g. "
 
 ## Directory
 The steps above are done; the fabric prototype is now the site itself.
-- `src/`, `public/`, `index.html`: the site. Every tweakable value is in `src/config.js`; page content is in `src/pages.js`.
-- `docs/CONTENT.md`: the text that must appear on each page, and the nav order. Defer to it for content.
+- `src/`, `public/`, `index.html`: the site. Every tweakable value is in `src/config.js`; page layout and photos are in `src/pages.js`.
+- `script/`: the writing for every page, one Markdown file per page, split into named slots. Defer to it for page text.
+- `docs/CONTENT.md`: the site structure and nav order. Defer to it for which pages exist.
 - `docs/DESIGN.md`: type, colour and layout rules. Defer to it for style choices.
 - `docs/layout-sketch.svg`: the hand-drawn fabric layout. `docs/old-site-screenshot.png`: the old Squarespace site. Don't copy its look, but use it for how photos sit alongside text.
 - `public/graphics/name_written.svg`: my hand-written name. It always stays at the top left.
-- `originals/sewing_photos/`: full-size photos. The site uses resized copies in `public/photos/`.
+- `originals/sewing_photos/`: full-size photos. The site uses resized copies (about 1400–1600 px on the long edge) in `public/photos/`, in one folder per page (`landing page/`, `1780s/`, `Larp/` (with `halloween dress/`), `More Historical/`, `Modern Pieces/`, `mending/`). Where each photo sits on a page is set in `src/pages.js`.
 - `LLM Bibliography/`: one file per AI-assisted session.

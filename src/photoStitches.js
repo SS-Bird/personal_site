@@ -1,13 +1,14 @@
 // ---------------------------------------------------------------------------
-// photoStitches.js: sews the photos onto the fabric.
+// photoStitches.js: sews the photos (and the patches) onto the fabric.
 //
-// Each photo gets an SVG drawn just around it: a squiggly thread along its
+// Each photo or patch gets an SVG drawn just around it: a squiggly thread along its
 // edge, plus short diagonal stitches going from that edge out onto the
 // cloth, like a patch that's been whip-stitched on. It's plain SVG on top of
 // the HTML (not WebGL), so it's crisp and scrolls with the photo.
 //
-// The squiggle is random but repeatable: each photo's file name seeds the
-// random numbers, so a photo looks the same every time you visit.
+// The squiggle is random but repeatable: each photo's file name (or a
+// patch's data-stitch-seed) seeds the random numbers, so it looks the same
+// every time you visit.
 // ---------------------------------------------------------------------------
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -15,7 +16,7 @@ const MARGIN = 14; // px around the photo the drawing can use
 
 // A small seeded random number generator ("mulberry32"): same seed → same
 // sequence. Math.random() can't be seeded, so we roll our own.
-function seededRandom(seedText) {
+export function seededRandom(seedText) {
   let a = 0;
   for (const ch of seedText) a = (Math.imul(a, 31) + ch.charCodeAt(0)) | 0;
   return () => {
@@ -55,7 +56,7 @@ function draw(figure) {
   svg.dataset.size = `${w}x${h}`;
   svg.setAttribute('viewBox', `${-MARGIN} ${-MARGIN} ${w + 2 * MARGIN} ${h + 2 * MARGIN}`);
 
-  const rand = seededRandom(figure.querySelector('img')?.getAttribute('src') ?? 'photo');
+  const rand = seededRandom(figure.dataset.stitchSeed ?? figure.querySelector('img')?.getAttribute('src') ?? 'photo');
   const perimeter = 2 * (w + h);
 
   // 1. The squiggly border: points every few px around the edge, nudged in
@@ -104,11 +105,12 @@ function draw(figure) {
 // window resizing, layout changes): a ResizeObserver tells us when.
 const observer = new ResizeObserver((entries) => entries.forEach((e) => draw(e.target)));
 
-// Call after putting a page's HTML on the screen.
-export function stitchPhotos(root) {
+// Call after putting new HTML on the screen, with everything that should be
+// sewn on (photos' <figure>s, patches). Forgets the previous page's elements.
+export function stitch(elements) {
   observer.disconnect();
-  root.querySelectorAll('.page figure').forEach((figure) => {
-    observer.observe(figure);
-    draw(figure);
-  });
+  for (const el of elements) {
+    observer.observe(el);
+    draw(el);
+  }
 }

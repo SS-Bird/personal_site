@@ -117,6 +117,7 @@ export function createFabric(config) {
     unfold: config.unfold.progress,
     drop: config.fold.cornerDrop,
     tug: config.tug.progress,
+    stripTug: config.tug.stripProgress,
     lift: config.scrollLift.progress,
   });
 
@@ -149,7 +150,10 @@ export function createFabric(config) {
     };
     const corner = new THREE.Vector2(m.seamX, m.top); // both pieces' inner top corner
 
-    const tug = state.tug;
+    // Each piece has its own tug, so the strip can stay put while only the
+    // main piece is pulled off (moving between Sewing pages). A state with
+    // no stripTug (e.g. main.js's resting state) tugs both pieces together.
+    const tugs = { strip: state.stripTug ?? state.tug, main: state.tug };
     // Where each corner is dragged to: far enough along its direction that the
     // crease (halfway there) ends up past the whole screen.
     const reach = 2.1 * Math.hypot(viewWidth, viewHeight);
@@ -167,6 +171,7 @@ export function createFabric(config) {
     m.shapeStrength = {};
     for (const side of ['strip', 'main']) {
       const rest = restBar(pins[side], drops[side], m);
+      const tug = tugs[side];
       if (tug <= 0) {
         m.bars[side] = rest;
       } else {
@@ -177,17 +182,20 @@ export function createFabric(config) {
 
     // Tugging pulls the flaps flat (otherwise a lifted flap swept that far
     // would swing up into the camera).
-    m.foldAngle = THREE.MathUtils.lerp(f.foldAngle, 1, THREE.MathUtils.smoothstep(tug, 0, 0.25));
-
     // Wave and radius jitter fade out when the corners are up (the bar lies
     // along the top edge, and a wobble would poke over it) and as the tug
     // drags the crease away.
-    for (const side of ['strip', 'main']) m.shapeStrength[side] = drops[side] * (1 - tug);
+    m.foldAngles = {};
+    for (const side of ['strip', 'main']) {
+      m.foldAngles[side] = THREE.MathUtils.lerp(f.foldAngle, 1, THREE.MathUtils.smoothstep(tugs[side], 0, 0.25));
+      m.shapeStrength[side] = drops[side] * (1 - tugs[side]);
+    }
     return m;
   }
 
-  // Where each piece's flap lies, as 3D polygons, plus the flat part of the
-  // main panel. main.js projects these to the screen to clip the page text.
+  // Where each piece's flap lies, as 3D polygons, plus the flat part of each
+  // piece. main.js projects these to the screen to clip the page text (main
+  // panel) and the patches (left strip).
   //
   // Cloth that started distance d past the crease ends up (straight part of
   // wrap() in the vertex shader) at
@@ -207,12 +215,13 @@ export function createFabric(config) {
       const line = half
         ? { point: { x: 0, y: m.crease }, normal: { x: 0, y: 1 }, R: config.unfold.radius, theta: Math.PI, slack: 0 }
         : {
-            point: bar.pin, normal: bar.normal, theta: m.foldAngle * Math.PI,
+            point: bar.pin, normal: bar.normal, theta: m.foldAngles[side] * Math.PI,
             R: Math.max(config.fold.radius * (1 - config.fold.radiusJitter * m.shapeStrength[side]), 0.002),
             slack: config.fold.waveAmp * m.shapeStrength[side],
           };
       const { point, normal, R, theta, slack } = line;
       if (side === 'main') result.flatMain = clipByLine(rect, point, normal, -1);
+      else result.flatStrip = clipByLine(rect, point, normal, -1);
 
       const c = Math.cos(theta);
       const s = Math.sin(theta);
@@ -252,12 +261,14 @@ export function createFabric(config) {
       u.uBarDir.value.copy(b.dir);
       u.uBarNormal.value.copy(b.normal);
       u.uBarLen.value = Math.min(b.len, m.height);
-      u.uFoldAngle.value = m.foldAngle;
+      u.uFoldAngle.value = m.foldAngles[piece.side];
       u.uRadius.value = f.radius;
       u.uRadiusJitter.value = f.radiusJitter * m.shapeStrength[piece.side];
       u.uWaveAmp.value = f.waveAmp * m.shapeStrength[piece.side];
       u.uWaveFreq.value = f.waveFreq;
-      u.uSeed.value = f.seed + (piece.side === 'strip' ? 31.7 : 0); // different wobble per piece
+      // A different wobble per piece. The strip can keep its old wobble
+      // (stripSeed) while a new main piece comes in beside it.
+      u.uSeed.value = piece.side === 'strip' ? (f.stripSeed ?? f.seed + 31.7) : f.seed;
 
       u.uColorA.value.set(fabric.color);
       u.uColorB.value.set(fabric.weftColor);
